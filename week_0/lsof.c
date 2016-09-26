@@ -127,6 +127,10 @@ int main()
 	free(linkname);
 	free(dir);
 	
+	closedir(proc_dir);
+	closedir(fd_dir);
+	closedir(map_files_dir);
+
 	return 0;
 }
 
