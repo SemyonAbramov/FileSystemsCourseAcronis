@@ -274,22 +274,21 @@ char** parse_argument(char* arg)
 long long lookup_dir(int fd, char* dir_name, struct ext2_inode* dir_inode)
 {
 	struct ext2_dir_entry_2 dir_entry;
-	char* name = malloc(sizeof(char) * EXT2_NAME_LEN);
-	memset(name, 0, EXT2_NAME_LEN);
+	char name[EXT2_NAME_LEN];
+	memset(&name, 0, EXT2_NAME_LEN);
 
  	uint16_t rec_len = 0;
 	uint8_t name_len = 0;
 	long long cur = 0;
 
 	uint32_t size = dir_inode->i_size;
-	uint32_t dir_len = 0;
+	uint32_t dir_pos = 0;
 	long long dir_node = 0;
 
 	struct block bl;
 	init_block(fd, dir_inode, &bl);
 
 	long long dir_start = 0; 
-
 	int i = 0;
 
 	for (i = 0; i < dir_inode->i_blocks; i++)
@@ -298,31 +297,31 @@ long long lookup_dir(int fd, char* dir_name, struct ext2_inode* dir_inode)
 		lseek(fd, dir_start, SEEK_SET);
 		read(fd, &dir_entry, sizeof(uint8_t) * 8);
 
-	 	while (size > dir_len)
+	 	while (size > dir_pos)
 	 	{
 		 	if (! dir_entry.inode)
+		 	{	
+		 		dir_pos += BLOCK_SIZE - dir_pos/BLOCK_SIZE;
 		 		break;	
+		 	}
 
 		 	rec_len = dir_entry.rec_len;
-			dir_len += rec_len;
+			dir_pos += rec_len;
 			name_len = dir_entry.name_len;
-	 		read(fd, name, name_len);
+	 		read(fd, &name, name_len);
 
-			if (!strcmp(name, dir_name))
+			if (!strcmp(&name, dir_name))
 			{
-				dir_node = 	dir_entry.inode;
-				free(name);			
+				dir_node = 	dir_entry.inode;			
 				return dir_node;
 			}
 
-			memset(name, 0, EXT2_NAME_LEN);
+			memset(&name, 0, EXT2_NAME_LEN);
 			memset(&dir_entry, 0, sizeof(struct ext2_dir_entry_2));
 			cur = lseek(fd, rec_len - 8 - name_len, SEEK_CUR);
 			read(fd, &dir_entry, sizeof(uint8_t) * 8);	
 		} 
 	}
-
-	free(name);
 
 	return -1;
 }
@@ -330,14 +329,14 @@ long long lookup_dir(int fd, char* dir_name, struct ext2_inode* dir_inode)
 uint32_t read_dir_content(int fd, long long dir_start, uint32_t size)
 {
 	struct ext2_dir_entry_2 dir_entry;
-	char* name = malloc(sizeof(char) * EXT2_NAME_LEN);
-	memset(name, 0, EXT2_NAME_LEN);
+	char name[EXT2_NAME_LEN];
+	memset(&name, 0, EXT2_NAME_LEN);
 
  	uint16_t rec_len = 0;
 	uint8_t name_len = 0;
 	uint32_t dir_entry_inode = 0;
 	long long cur = 0;
-	uint32_t dir_len = 0;
+	uint32_t dir_pos = 0;
 
 	lseek(fd, dir_start, SEEK_SET);
 	read(fd, &dir_entry, sizeof(uint8_t) * 8);
@@ -347,23 +346,20 @@ uint32_t read_dir_content(int fd, long long dir_start, uint32_t size)
 	do {
  		
  		rec_len = dir_entry.rec_len;
- 		dir_len += rec_len;
+ 		dir_pos += rec_len;
 		name_len = dir_entry.name_len;
- 		read(fd, name, name_len);
+ 		read(fd, &name, name_len);
 		
 		printf("name: %s\n", name);
 
-		memset(name, 0, EXT2_NAME_LEN);
+		memset(&name, 0, EXT2_NAME_LEN);
 		memset(&dir_entry, 0, sizeof(struct ext2_dir_entry_2));
 		cur = lseek(fd, rec_len - 8 - name_len, SEEK_CUR);
 		read(fd, &dir_entry, sizeof(uint8_t) * 8);	
 		
-	} while (size > dir_len);
+	} while (size > dir_pos);
 
-
-	free(name);
-
-	return dir_len;
+	return dir_pos;
 }
 
 void get_inode(int fd, long long inum, struct ext2_inode** inode)
