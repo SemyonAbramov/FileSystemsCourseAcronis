@@ -1,0 +1,17 @@
+project (FS)
+cmake_minimum_required (VERSION 2.8)
+cmake_policy(SET CMP0015 NEW) 
+
+list (APPEND DIR_LIST
+	ext/src
+)
+
+include_directories(${DIR_LIST})
+
+list (APPEND SRC
+	src/helpers.c
+	src/ext2.c
+	src/main.c
+)
+
+add_executable (ext2 ${SRC})
